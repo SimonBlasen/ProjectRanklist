@@ -5,6 +5,8 @@
 
 
 
+
+
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
@@ -12,6 +14,26 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setupUi(this);
 
     //UtilH::hure(3);
+
+    arduinoConnected = false;
+
+    m_ports = QSerialPortInfo::availablePorts();
+
+    for (int i = 0; i < m_ports.size(); ++i)
+        {
+            ui->comboBox_COMPort->addItem(m_ports[i].description(), i);
+        }
+
+    if (m_ports.size() >= 1)
+    {
+        on_comboBox_currentIndexChanged(0);
+        arduinoConnected = true;
+
+        char sendData = 4;
+        m_port.write(&sendData);
+    }
+
+    connect(ui->comboBox_COMPort, SIGNAL(currentIndexChanged(int)), this, SLOT(on_comboBox_currentIndexChanged(int)));
 
     fuelAmountBeginLap = 0.0;
     fuelUsedLastLap = 0.0;
@@ -269,6 +291,21 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+
+void MainWindow::on_comboBox_currentIndexChanged(int index)
+{
+    m_port.close();
+    int port = ui->comboBox_COMPort->itemData(index).toInt();
+    m_port.setPort(m_ports.at(port));
+    m_port.open(QSerialPort::ReadWrite);
+    m_port.setBaudRate(9600);
+
+    ui->label_Arduino->setText("Connected to Arduino");
+
+    connect(&m_port, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
+}
+
+
 void MainWindow::update()
 {
     ui->label_Info_GameState->setText(getGameStateString(sharedData->mGameState));
@@ -319,6 +356,14 @@ void MainWindow::update()
     ui->label_damage_engine->setText("Enginedamage: " + QString::number(damageEngine));
 
 
+
+    // RPM
+
+    if (arduinoConnected)
+    {
+        char sendData = 3;
+        m_port.write(&sendData, 1);
+    }
 
 
 
@@ -602,6 +647,10 @@ void MainWindow::refreshView()
 
 void MainWindow::runningCheckedChanged(int newState)
 {
+
+    char sendData = 15;
+    m_port.write(&sendData, 1);
+
     //ui->checkBoxRunning->setText(QString::number(newState));
 
     if (newState == 0)

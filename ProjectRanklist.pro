@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       += core gui
+QT       += core gui serialport
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -16,13 +16,15 @@ SOURCES += main.cpp\
         mainwindow.cpp \
     Participant.cpp \
     trackborders.cpp \
-    util.cpp
+    util.cpp \
+    serialport.cpp
 
 HEADERS  += mainwindow.h \
     sharedmemory.h \
     sms_memmapsample.h \
     Participant.h \
     trackborders.h \
-    util.h
+    util.h \
+    serialport.h
 
 FORMS    += mainwindow.ui

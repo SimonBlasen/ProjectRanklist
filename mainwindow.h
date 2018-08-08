@@ -16,6 +16,8 @@
 #include <Windows.h>
 #include "trackborders.h"
 
+#include <QtSerialPort/QSerialPortInfo>
+#include <QtSerialPort/QSerialPort>
 
 #define MAP_OBJECT_NAME "$pcars$"
 
@@ -79,7 +81,13 @@ private:
 
     HANDLE fileHandle;
     SharedMemory *sharedData;
+    QList<QSerialPortInfo> m_ports;
+    QSerialPort m_port;
 
+    bool arduinoConnected;
+
+private slots:
+    void on_comboBox_currentIndexChanged(int index);
 
 };
 
