@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "serialmessage.h"
 
 #include "util.h"
 
@@ -16,28 +17,37 @@ MainWindow::MainWindow(QWidget *parent) :
     //UtilH::hure(3);
 
     arduinoConnected = false;
+    arduinoConnectedDisplay = false;
 
     m_ports = QSerialPortInfo::availablePorts();
 
+
+    ui->comboBox_COMPort->addItem("None", 0);
+    ui->comboBox_COMPortDisplay->addItem("None", 0);
+
     for (int i = 0; i < m_ports.size(); ++i)
         {
-            ui->comboBox_COMPort->addItem(m_ports[i].description(), i);
+            ui->comboBox_COMPort->addItem(m_ports[i].description(), i + 1);
+            ui->comboBox_COMPortDisplay->addItem(m_ports[i].description(), i + 1);
         }
 
-    if (m_ports.size() >= 1)
+    /*if (m_ports.size() >= 1)
     {
         on_comboBox_currentIndexChanged(0);
         arduinoConnected = true;
 
         char sendData = 4;
         m_port.write(&sendData);
-    }
+    }*/
 
     connect(ui->comboBox_COMPort, SIGNAL(currentIndexChanged(int)), this, SLOT(on_comboBox_currentIndexChanged(int)));
+    connect(ui->comboBox_COMPortDisplay, SIGNAL(currentIndexChanged(int)), this, SLOT(on_comboBoxDisplay_currentIndexChanged(int)));
 
     fuelAmountBeginLap = 0.0;
     fuelUsedLastLap = 0.0;
     lastLapTime = 0.0;
+
+    timerCounter = 0;
 
     fileHandle = NULL;
     m_map = new bool[512*1024];
@@ -62,6 +72,9 @@ MainWindow::MainWindow(QWidget *parent) :
     m_minZ = -1;
     m_maxZ = 1;
 
+
+    sendCounter = 0;
+
     m_image = QImage(QSize(1024, 512), QImage::Format_RGB32);
 
 
@@ -81,7 +94,10 @@ MainWindow::MainWindow(QWidget *parent) :
     }
     labelImage->setPixmap(QPixmap::fromImage(m_image));
 
+    arduino_inPits = false;
 
+    m_megaBestLapOld = 0.0f;
+    m_megaLastLapOld = 0.0f;
 
     m_labelsPos.append(ui->label_1_Pos);
     m_labelsPos.append(ui->label_2_Pos);
@@ -279,6 +295,10 @@ MainWindow::MainWindow(QWidget *parent) :
 
     connect(ui->checkBoxRunning, SIGNAL(stateChanged(int)), this, SLOT(runningCheckedChanged(int)));
 
+    connect(ui->pushButton_ChangeBrightness, SIGNAL(released()), this, SLOT(buttonBrightnessChangeClick()));
+    connect(ui->pushButton_ChangeBrightnessDisplay, SIGNAL(released()), this, SLOT(buttonBrightnessChangeDisplayClick()));
+
+
     timer = new QTimer(this);
 
     connect(timer, SIGNAL(timeout()), this, SLOT(update()));
@@ -292,22 +312,106 @@ MainWindow::~MainWindow()
 }
 
 
+void MainWindow::buttonBrightnessChangeDisplayClick()
+{
+    if (arduinoConnectedDisplay)
+    {
+        //char sendData = (char)(1);
+        //m_portDisplay.write(&sendData, 1);
+
+        char sendData2[2] = {0, 4};
+        char *sendData;
+        sendData = sendData2;
+        m_portDisplay.write(sendData, 2);
+    }
+}
+
+
+void MainWindow::buttonBrightnessChangeClick()
+{
+    if (arduinoConnected)
+    {
+        /*if (ui->lineEdit->text() == "Pit_On")
+        {
+            char sendData = (char)((int)162);
+            m_port.write(&sendData, 1);
+        }
+        else if (ui->lineEdit->text() == "Pit_Off")
+        {
+            char sendData = (char)((int)163);
+            m_port.write(&sendData, 1);
+        }*/
+        //else
+        //{
+            int brightnessSet = ui->lineEdit->text().toInt();
+
+            if (brightnessSet < 1)
+            {
+                brightnessSet = 1;
+            }
+            else if (brightnessSet > 10)
+            {
+                brightnessSet = 10;
+            }
+
+            char sendData = (char)(brightnessSet + 170);
+            m_port.write(&sendData, 1);
+        //}
+
+
+    }
+}
+
 void MainWindow::on_comboBox_currentIndexChanged(int index)
 {
     m_port.close();
-    int port = ui->comboBox_COMPort->itemData(index).toInt();
-    m_port.setPort(m_ports.at(port));
-    m_port.open(QSerialPort::ReadWrite);
-    m_port.setBaudRate(9600);
+    if (index != 0)
+    {
+        int port = ui->comboBox_COMPort->itemData(index).toInt();
+        m_port.setPort(m_ports.at(port - 1));
+        m_port.open(QSerialPort::ReadWrite);
+        m_port.setBaudRate(9600);
+        arduinoConnected = true;
 
-    ui->label_Arduino->setText("Connected to Arduino");
+        ui->label_Arduino->setText("Connected to Arduino");
 
-    connect(&m_port, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
+        connect(&m_port, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
+    }
+    else
+    {
+        ui->label_Arduino->setText("Disconnected");
+    }
+}
+
+void MainWindow::on_comboBoxDisplay_currentIndexChanged(int index)
+{
+    m_portDisplay.close();
+    if (index != 0)
+    {
+        int port = ui->comboBox_COMPort->itemData(index).toInt();
+        m_portDisplay.setPort(m_ports.at(port - 1));
+        m_portDisplay.open(QSerialPort::ReadWrite);
+        m_portDisplay.setBaudRate(115200);
+        arduinoConnectedDisplay = true;
+
+        ui->label_ArduinoMega->setText("Connected to Arduino MEGA");
+
+        connect(&m_portDisplay, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
+    }
+    else
+    {
+        ui->label_ArduinoMega->setText("Disconnected");
+    }
 }
 
 
 void MainWindow::update()
 {
+    timerCounter++;
+    if (timerCounter > 100000)
+    {
+        timerCounter = 0;
+    }
     ui->label_Info_GameState->setText(getGameStateString(sharedData->mGameState));
     ui->label_Info_SessionState->setText(getSessionStateString(sharedData->mSessionState));
 
@@ -361,9 +465,263 @@ void MainWindow::update()
 
     if (arduinoConnected)
     {
-        char sendData = 3;
+        float curRpm = sharedData->mRpm;
+        float maxRpm = sharedData->mMaxRPM;
+
+        ui->label_ArduinoDebug->setText(QString::number(curRpm / maxRpm));
+
+        float ratioRpm = curRpm / maxRpm > 1.0f ? 1.0f : curRpm / maxRpm;
+
+        ratioRpm = ratioRpm - 0.85f;
+        ratioRpm *= 1.0f / (1.0f - 0.85f);
+
+        if (ratioRpm < 0.0f)
+        {
+            ratioRpm = 0.0f;
+        }
+
+
+        int number = (int)(ratioRpm * 166.0f);
+
+        if (number > 50 && number <= 110)
+        {
+            number = 110;
+        }
+        if (number > 110 && number <= 160)
+        {
+            number = 160;
+        }
+        if (number > 160)
+        {
+            number = 161;
+        }
+
+
+        if (arduino_inPits)
+        {
+            if (sharedData->mPitMode == PIT_MODE_NONE)
+            {
+                arduino_inPits = false;
+
+                char sendData = (char)((int)163);
+                m_port.write(&sendData, 1);
+            }
+        }
+        else
+        {
+            if (sharedData->mPitMode != PIT_MODE_NONE)
+            {
+                arduino_inPits = true;
+
+                char sendData = (char)((int)162);
+                m_port.write(&sendData, 1);
+            }
+        }
+
+
+
+
+
+
+
+
+
+
+        char sendData = (char)number;
         m_port.write(&sendData, 1);
+
+
+
     }
+
+
+
+
+    bool sentd = false;
+
+
+
+
+    // Gear
+
+    /*if (arduinoConnectedDisplay)
+    {
+        int curGear = sharedData->mGear;
+        if (curGear != m_megaOldGear && (curGear != 0 || sharedData->mSpeed < 5))
+        {
+            m_megaOldGear = curGear;
+            char sendData2[4] = {0x3C, 0, (char)curGear, 0x3E};
+            char *sendData;
+            sendData = sendData2;
+            m_portDisplay.write(sendData, 4);
+            sentd = true;
+            ui->label_ArduinoMega->setText("Sent: " + QString::number(curGear));
+
+            if (timerCounter - m_megaTimerGearSent <= 4)
+            {
+                m_megaSendAgainGearTime = timerCounter + 8;
+            }
+            else
+            {
+                m_megaTimerGearSent = timerCounter;
+                m_megaSendAgainGearTime = -1;
+            }
+        }
+
+        if (m_megaSendAgainGearTime != -1)
+        {
+            if (m_megaSendAgainGearTime == timerCounter)
+            {
+                m_megaSendAgainGearTime = -1;
+                m_megaOldGear = curGear;
+                char sendData2[4] = {0x3C, 0, (char)curGear, 0x3E};
+                char *sendData;
+                sendData = sendData2;
+                m_portDisplay.write(sendData, 4);
+                ui->label_ArduinoMega->setText("Sent: " + QString::number(curGear));
+
+                m_megaTimerGearSent = timerCounter;
+            }
+        }
+        else if (timerCounter - m_megaTimerGearSent >= 40)
+        {
+            m_megaOldGear = curGear;
+            char sendData2[4] = {0x3C, 0, (char)curGear, 0x3E};
+            char *sendData;
+            sendData = sendData2;
+            m_portDisplay.write(sendData, 4);
+            ui->label_ArduinoMega->setText("Sent: " + QString::number(curGear));
+
+            m_megaTimerGearSent = timerCounter;
+        }
+    }
+*/
+
+    sendCounter++;
+    // Speed
+    if (arduinoConnectedDisplay && sendCounter >= 0)
+    {
+        int curSpeed = (sharedData->mSpeed * (60.0f * 60.0f) / 1000.0f);
+
+        if (true || curSpeed != m_megaOldSpeed)
+        {
+            if (true)
+            {
+                int curGear = sharedData->mGear;
+                int curRpm = (sharedData->mRpm / sharedData->mMaxRPM) * 10000.0f;
+
+                if (curSpeed >= 20 && curGear == 0)
+                {
+
+                }
+                else if (curSpeed >= 20 && curGear != 0)
+                {
+                    m_megaOldGear = curGear;
+                }
+                else if (curSpeed < 20)
+                {
+                    m_megaOldGear = curGear;
+                }
+
+                char sendData2[10] = {0x3C, 1, (char)(curSpeed >> 8), (char)(curSpeed), 34, (char)m_megaOldGear, 35, (char)(curRpm >> 8), (char)(curRpm), 0x3E};
+                char *sendData;
+                sendData = sendData2;
+                m_portDisplay.write(sendData, 10);
+            }
+            else
+            {
+                char sendData2[5] = {0x3C, 1, (char)(curSpeed >> 8), (char)(curSpeed), 0x3E};
+                char *sendData;
+                sendData = sendData2;
+                m_portDisplay.write(sendData, 5);
+            }
+
+            m_megaOldSpeed = curSpeed;
+        }
+
+
+    }
+
+
+    // Oil temp
+    if (arduinoConnectedDisplay)
+    {
+        int oilTemp = sharedData->mOilTempCelsius;
+
+        if (oilTemp != m_megaOldOilTemp)
+        {
+            m_megaOldOilTemp = oilTemp;
+            SerialMessage* msg = new SerialMessage();
+            msg->sendArray.append(2);
+            msg->sendArray.append((char)oilTemp);
+
+            //mMessageBuffer.append(msg);
+        }
+    }
+
+    if (arduinoConnectedDisplay)
+    {
+        if (sendCounter >= 30)
+        {
+            sendCounter = 0;
+            m_megaLastLapOld = sharedData->mLastLapTime;
+            char minutes = (char)((int)(m_megaLastLapOld / 60.0f));
+            char seconds = (char)((int)(m_megaLastLapOld));
+            int milli = (((int)(m_megaLastLapOld * 1000.0f)) - ((int)seconds) * 1000);
+            seconds = seconds % 60;
+            char milli0 = (char)(milli >> 8);
+            char milli1 = (char)(milli);
+
+
+            SerialMessage* msg = new SerialMessage();
+            msg->sendArray.append(3);
+            msg->sendArray.append(minutes);
+            msg->sendArray.append(seconds);
+            msg->sendArray.append(milli0);
+            msg->sendArray.append(milli1);
+
+            mMessageBuffer.append(msg);
+        }
+    }
+
+
+
+    QByteArray readBytes = m_portDisplay.readAll();
+    if (readBytes.length() > 0)
+    {
+        if (readBytes.at(0) == 1)
+        {
+            mMessageBuffer.removeAt(0);
+        }
+        //ui->label_ArduinoMega->setText("Got Data. Amount: " + QString::number(readBytes.length()));
+    }
+
+
+    if (mMessageBuffer.size() > 0)
+    {
+        char sendData2[128];// = {0x3C, 1, (char)(curSpeed >> 8), (char)(curSpeed), 0x3E};
+        sendData2[0] = 0x3C;
+        sendData2[1 + mMessageBuffer.at(0)->sendArray.size()] = 0x3E;
+        for (int i = 0; i < mMessageBuffer.at(0)->sendArray.size(); i++)
+        {
+            sendData2[i + 1] = mMessageBuffer.at(0)->sendArray.at(i);
+        }
+
+
+
+
+        char *sendData;
+        sendData = sendData2;
+        m_portDisplay.write(sendData, 2 + mMessageBuffer.at(0)->sendArray.size());
+    }
+
+
+
+
+
+
+
+
 
 
 
@@ -647,9 +1005,6 @@ void MainWindow::refreshView()
 
 void MainWindow::runningCheckedChanged(int newState)
 {
-
-    char sendData = 15;
-    m_port.write(&sendData, 1);
 
     //ui->checkBoxRunning->setText(QString::number(newState));
 

@@ -13,6 +13,7 @@
 #include <QImage>
 #include <QtMath>
 
+#include "serialmessage.h"
 #include <Windows.h>
 #include "trackborders.h"
 
@@ -36,6 +37,8 @@ public:
 public slots:
     void runningCheckedChanged(int newState);
     void update();
+    void buttonBrightnessChangeClick();
+    void buttonBrightnessChangeDisplayClick();
 
 private:
     Ui::MainWindow *ui;
@@ -83,11 +86,35 @@ private:
     SharedMemory *sharedData;
     QList<QSerialPortInfo> m_ports;
     QSerialPort m_port;
+    QSerialPort m_portDisplay;
 
     bool arduinoConnected;
+    bool arduinoConnectedDisplay;
+
+    bool arduino_inPits;
+
+
+    int m_megaOldSpeed;
+    int m_megaOldGear;
+    int m_megaTimerGearSent;
+    int m_megaSendAgainGearTime;
+
+    int m_megaOldOilTemp;
+
+    float m_megaLastLapOld;
+    float m_megaBestLapOld;
+
+    int sendCounter;
+
+
+    QList<SerialMessage*> mMessageBuffer;
+
+
+    int timerCounter;
 
 private slots:
     void on_comboBox_currentIndexChanged(int index);
+    void on_comboBoxDisplay_currentIndexChanged(int index);
 
 };
 

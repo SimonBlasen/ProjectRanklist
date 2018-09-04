@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1022</width>
-    <height>1271</height>
+    <height>1300</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -2447,7 +2447,68 @@
        <widget class="QComboBox" name="comboBox_COMPort"/>
       </item>
       <item>
+       <widget class="QLineEdit" name="lineEdit"/>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButton_ChangeBrightness">
+        <property name="text">
+         <string>Change Brightness</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="label_ArduinoDebug">
+        <property name="text">
+         <string>TextLabel</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <spacer name="horizontalSpacer_35">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_41">
+      <item>
+       <widget class="QLabel" name="label_ArduinoMega">
+        <property name="text">
+         <string>TextLabel</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QComboBox" name="comboBox_COMPortDisplay"/>
+      </item>
+      <item>
+       <widget class="QLineEdit" name="lineEdit_2"/>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButton_ChangeBrightnessDisplay">
+        <property name="text">
+         <string>Change Brightness</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="label_11">
+        <property name="text">
+         <string>TextLabel</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer_36">
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
         </property>

@@ -17,7 +17,8 @@ SOURCES += main.cpp\
     Participant.cpp \
     trackborders.cpp \
     util.cpp \
-    serialport.cpp
+    serialport.cpp \
+    serialmessage.cpp
 
 HEADERS  += mainwindow.h \
     sharedmemory.h \
@@ -25,6 +26,7 @@ HEADERS  += mainwindow.h \
     Participant.h \
     trackborders.h \
     util.h \
-    serialport.h
+    serialport.h \
+    serialmessage.h
 
 FORMS    += mainwindow.ui
