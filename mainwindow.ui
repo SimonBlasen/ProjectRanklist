@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1022</width>
-    <height>1300</height>
+    <height>1331</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -950,6 +950,9 @@
            </item>
           </layout>
          </widget>
+        </item>
+        <item>
+         <widget class="QListWidget" name="listWidget"/>
         </item>
         <item>
          <widget class="Line" name="line_P14">

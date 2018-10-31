@@ -104,6 +104,11 @@ private:
     float m_megaLastLapOld;
     float m_megaBestLapOld;
 
+    int m_megaCurrentLapOld;
+    int m_megaAmountLapsOld;
+    int m_megaCurrentPosOld;
+    int m_megaOponentsOld;
+
     int sendCounter;
 
 

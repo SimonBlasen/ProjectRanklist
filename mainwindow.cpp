@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "serialmessage.h"
+#include "iostream"
 
 #include "util.h"
 
@@ -655,13 +656,13 @@ void MainWindow::update()
             msg->sendArray.append(2);
             msg->sendArray.append((char)oilTemp);
 
-            //mMessageBuffer.append(msg);
+            mMessageBuffer.append(msg);
         }
     }
 
     if (arduinoConnectedDisplay)
     {
-        if (sendCounter >= 30)
+        if (m_megaLastLapOld != sharedData->mLastLapTime)
         {
             sendCounter = 0;
             m_megaLastLapOld = sharedData->mLastLapTime;
@@ -682,6 +683,60 @@ void MainWindow::update()
 
             mMessageBuffer.append(msg);
         }
+        else if (m_megaBestLapOld != sharedData->mBestLapTime)
+        {
+            m_megaBestLapOld = sharedData->mBestLapTime;
+            char minutes = (char)((int)(m_megaBestLapOld / 60.0f));
+            char seconds = (char)((int)(m_megaBestLapOld));
+            int milli = (((int)(m_megaBestLapOld * 1000.0f)) - ((int)seconds) * 1000);
+            seconds = seconds % 60;
+            char milli0 = (char)(milli >> 8);
+            char milli1 = (char)(milli);
+
+
+            SerialMessage* msg = new SerialMessage();
+            msg->sendArray.append(4);
+            msg->sendArray.append(minutes);
+            msg->sendArray.append(seconds);
+            msg->sendArray.append(milli0);
+            msg->sendArray.append(milli1);
+
+            mMessageBuffer.append(msg);
+        }
+
+
+        int partOwnId = 0;
+        for (int i = 0; i < 64; i++)
+        {
+            if (sharedData->mParticipantInfo[i].mName == ui->lineEdit_ownName->text())
+            {
+                partOwnId = i;
+                break;
+            }
+        }
+
+        if (m_megaCurrentLapOld != sharedData->mParticipantInfo[partOwnId].mLapsCompleted)
+        {
+            m_megaCurrentLapOld = sharedData->mParticipantInfo[partOwnId].mLapsCompleted;
+
+            std::cout << std::to_string(m_megaCurrentLapOld) << std::endl;
+            SerialMessage* msg = new SerialMessage();
+            msg->sendArray.append(5);
+            msg->sendArray.append((char)m_megaCurrentLapOld);
+
+            mMessageBuffer.append(msg);
+        }
+
+        if (m_megaAmountLapsOld != sharedData->mLapsInEvent)
+        {
+            m_megaAmountLapsOld = sharedData->mLapsInEvent;
+
+            SerialMessage* msg = new SerialMessage();
+            msg->sendArray.append(6);
+            msg->sendArray.append((char)m_megaAmountLapsOld);
+
+            mMessageBuffer.append(msg);
+        }
     }
 
 
@@ -691,6 +746,9 @@ void MainWindow::update()
     {
         if (readBytes.at(0) == 1)
         {
+
+            //std::cout << "Ack" << std::endl;
+
             mMessageBuffer.removeAt(0);
         }
         //ui->label_ArduinoMega->setText("Got Data. Amount: " + QString::number(readBytes.length()));
